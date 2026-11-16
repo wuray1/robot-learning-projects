@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   真实机械臂上的自主操作与避障 · 吴睿
+  </title>
+  <meta content="吴睿的 Rizon 4 真机研究：VLSA-RL 残差强化学习与 CRISP 预测避障，涵盖 VR 示教、数据集构建、VLA 微调、真实交互训练和实验评估。" name="description"/>
+  <link href="portfolio.css?v=20261115-review" rel="stylesheet"/>
+  <script defer="" src="portfolio.js?v=20261115-no-traces">
+  </script>
+ </head>
+ <body>
+  <a class="skip" href="#projects">
+   跳到项目
+  </a>
+  <header class="page-header wrap">
+   <h1>
+    真实机械臂上的自主操作与避障
+   </h1>
+   <p class="lead">
+    这两个项目均开展于我在清华大学安全控制技术研究中心实习期间。我参与了两篇具身智能安全控制相关论文的研究工作，并在相关研究基础上，设计和实现了面向真实机械臂的实验系统。从 VR 示教接口、数据采集与处理、模型微调，到避障算法集成、真机强化学习和实验评估，我独立完成了两个项目的系统搭建、算法部署与真机验证。
+   </p>
+   <div class="identity">
+    <p class="author-name">
+     吴睿
+    </p>
+    <p class="author-email">
+     wurui011223@163.com
+    </p>
+   </div>
+   <div aria-label="自主执行流程" class="autonomy-intro">
+    <p>
+     文本指令驱动的自主执行
+    </p>
+    <ol class="autonomy-flow">
+     <li>
+      输入文本任务
+     </li>
+     <li>
+      相机图像＋机器人状态
+     </li>
+     <li>
+      VLA 生成动作
+     </li>
+     <li>
+      所选方法修正动作
+     </li>
+     <li>
+      机械臂执行并再次观测
+     </li>
+    </ol>
+    <p class="autonomy-example">
+     VLA（视觉语言动作模型）将相机图像、任务文本与机器人状态转换为动作。除微调前对照外，本页自主操作使用的基础策略均由我基于 OpenPI 的 π0.5 Base（pi05_base），通过真实机械臂示教数据微调得到。
+    </p>
+    <p class="autonomy-example">
+     例如输入“Pick up the cup and place it in the bowl.”（拿起杯子，放入碗中。）
+    </p>
+   </div>
+   <nav aria-label="页面目录">
+    <a href="#residual">
+     01 静态障碍 · 学习避障
+    </a>
+    <a href="#dynamic">
+     02 动态障碍 · 预测避障
+    </a>
+    <a href="#foundation">
+     实验基础
+    </a>
+    <a href="#materials">
+     工具与来源
+    </a>
+   </nav>
+  </header>
+  <main class="wrap">
+   <section aria-label="两项成果概览" class="overview" id="projects">
+    <div class="two-grid project-grid">
+     <article class="project-preview">
+      <h2>
+       静态障碍 · 学习避障
+      </h2>
+      <p>
+       依据 VLSA-RL 的残差学习思路，在 CBF（控制屏障函数）避障约束下，用 GRPO（组相对策略优化）训练小型动作修正网络。基础 VLA 保持冻结，训练与评估均在真实机械臂上进行。
+      </p>
+      <figure class="film excerpt">
+       <figcaption>
+        <strong>
+         CBF＋GRPO · 纸盒抓取、静态避障与放置
+        </strong>
+       </figcaption>
+       <video aria-label="CBF＋GRPO · 纸盒抓取、静态避障与放置" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hero-static-10s.jpg?v=2" preload="metadata" src="assets/media/hero-static-10s.mp4?v=2">
+       </video>
+      </figure>
+     </article>
+     <article class="project-preview">
+      <h2>
+       动态障碍 · 预测避障
+      </h2>
+      <p>
+       依据 CRISP（基于后续动作预览的风险感知优化）的思路，结合假手运动与机械臂后续动作预测接近风险，提前调整运动，并由 CBF 进行执行前检查。本项目不训练残差网络。
+      </p>
+      <figure class="film excerpt">
+       <figcaption>
+        <strong>
+         CBF＋CRISP · 纸杯抓取、动态避障与放置
+        </strong>
+       </figcaption>
+       <video aria-label="CBF＋CRISP · 纸杯抓取、动态避障与放置" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hero-dynamic-10s.jpg?v=2" preload="metadata" src="assets/media/hero-dynamic-10s.mp4?v=2">
+       </video>
+      </figure>
+     </article>
+    </div>
+    <div class="scale-strip">
+     <div>
+      <strong>
+       25 次
+      </strong>
+      <span>
+       GRPO 真机策略更新
+      </span>
+     </div>
+     <div>
+      <strong>
+       315 条
+      </strong>
+      <span>
+       示教轨迹
+      </span>
+     </div>
+     <div>
+      <strong>
+       31,780 帧
+      </strong>
+      <span>
+       示教数据帧
+      </span>
+     </div>
+     <div>
+      <strong>
+       10% → 60%
+      </strong>
+      <span>
+       GRPO 训练前后安全成功率 · 各 20 次
+      </span>
+     </div>
+    </div>
+   </section>
+   <section class="project" id="residual">
+    <div class="section-label">
+     01 / 静态障碍 · 残差学习
+    </div>
+    <h2>
+     项目一 · 静态障碍下的学习避障
+    </h2>
+    <div class="paper-citation">
+     <p class="paper-context">
+      参与论文
+     </p>
+     <h3>
+      VLSA-RL: Can a Small Residual Policy Enable Safety-Aware VLA Adaptation?
+     </h3>
+     <p class="paper-authors">
+      Songqiao Hu, Zeyi Liu,
+      <strong>
+       Rui Wu
+      </strong>
+      , Jinjia Chen, HO WUN ZENG, Wei Geng, Yingjian Zhang, Xiao He
+     </p>
+     <p class="paper-status">
+      ICLR 2027 · Rebuttal 阶段
+     </p>
+    </div>
+    <p class="section-intro">
+     VLSA-RL 研究如何让已有抓取能力的视觉语言动作模型，在障碍物附近兼顾运行安全与任务执行成功率。CBF 可以修正危险动作，但冻结的基础模型不会由此学会避障，反复干预还可能妨碍抓取与放置。论文通过强化学习训练一个小型残差网络，在基础动作上加入调整，使动作更符合安全约束，同时继续完成任务，无需重新训练整个基础模型。
+    </p>
+    <p class="section-intro">
+     我依据这一思路设计了纸盒抓取实验，要求机械臂根据文本指令，将棕色纸盒绕过牛奶盒并放入碗中。真机系统需要将视觉定位、动作残差和 CBF 接入同一执行流程，并处理坐标系、动作尺度与控制时序。残差策略直接从真实操作的完成情况和碰撞反馈中学习。
+    </p>
+    <p class="evidence-guide">
+     实验依次比较纯 VLA、加入 CBF、残差策略训练初期与 GRPO 训练后的表现。
+    </p>
+    <div aria-label="项目一实验递进" class="experiment-roadmap">
+     <a href="#r-baseline">
+      纯 VLA
+      <span>
+       未避开障碍物
+      </span>
+     </a>
+     <a href="#r-cbf">
+      ＋CBF
+      <span>
+       末端避让，载荷仍碰撞
+      </span>
+     </a>
+     <a href="#r-residual">
+      ＋残差策略（训练初期）
+      <span>
+       抓取失败 / 搬运停滞
+      </span>
+     </a>
+     <a href="#r-trained">
+      ＋真机 GRPO 训练
+      <span>
+       无碰撞完成任务
+      </span>
+     </a>
+    </div>
+    <div class="experiment-chain">
+     <article class="experiment-step" id="r-baseline">
+      <header class="step-heading">
+       <span class="step-number">
+        01
+       </span>
+       <div>
+        <h3>
+         纯 VLA · 未避开障碍物
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       微调后的 VLA 直接执行纸盒抓取任务，未加入避障算法。视频中，夹爪朝目标纸盒径直前进，没有绕开牛奶盒，随后将其撞倒。
+      </p>
+      <div class="step-media two-grid video-row">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          碰撞片段 · 牛奶盒被撞倒
+         </strong>
+        </figcaption>
+        <video aria-label="碰撞片段 · 牛奶盒倾倒" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/no-cbf-impact-sdr.jpg" preload="none" src="assets/media/no-cbf-impact-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          纯 VLA · 完整执行过程
+         </strong>
+        </figcaption>
+        <video aria-label="纯 VLA · 完整执行过程" controls="" muted="" playsinline="" poster="assets/media/no-cbf-collision-sdr.jpg" preload="none" src="assets/media/no-cbf-collision-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+     </article>
+     <article class="experiment-step" id="r-cbf">
+      <header class="step-heading">
+       <span class="step-number">
+        02
+       </span>
+       <div>
+        <h3>
+         CBF · 末端避让与载荷碰撞
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       在基础 VLA 上引入 CBF，处理夹爪接近牛奶盒时的碰撞风险。视频中，机械臂末端已能够绕开障碍物，但在抓取纸盒后的搬运过程中仍发生了碰撞。这是因为当前实现仅对夹爪进行了碰撞建模，未将被抓取的纸盒纳入避障约束。仅考虑夹爪的避障，还不足以保证整个搬运过程的安全性。
+      </p>
+      <div class="step-media two-grid video-row">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          碰撞片段 · 纸盒碰撞牛奶盒
+         </strong>
+        </figcaption>
+        <video aria-label="碰撞片段 · 纸盒碰撞牛奶盒" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/milk-collision-sdr.jpg" preload="none" src="assets/media/milk-collision-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          仅 CBF · 完整执行过程
+         </strong>
+        </figcaption>
+        <video aria-label="仅 CBF · 完整执行过程" controls="" muted="" playsinline="" poster="assets/media/collision-success-sdr.jpg" preload="none" src="assets/media/collision-success-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+     </article>
+     <article class="experiment-step" id="r-residual">
+      <header class="step-heading">
+       <span class="step-number">
+        03
+       </span>
+       <div>
+        <h3>
+         训练初期 · 抓取失败与搬运停滞
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       为改善带载搬运，在 VLA 与 CBF 之间加入可学习的残差策略。训练初期，动作调整可能干扰抓取位置、姿态以及后续放置。下面两段视频分别展示了抓取失败和搬运停滞。第一段中，夹爪推倒了目标纸盒，未能将其抓起；第二段中，机械臂绕过障碍后在空中反复调整，未能完成放置。这两种现象暴露了训练初期策略在抓取精度和任务衔接上的不足。残差策略需要在学习避障的同时保留原有的抓取能力，并继续完成搬运与放置。
+      </p>
+      <div class="failure-pairs two-grid">
+       <div class="failure-pair">
+        <h4>
+         抓取失败
+        </h4>
+        <p class="pair-intro">
+         抓取失败，夹爪推倒纸盒，未能抓起目标。
+        </p>
+        <figure class="film">
+         <figcaption>
+          <strong>
+           抓取失败 · 夹爪未能抓起纸盒
+          </strong>
+         </figcaption>
+         <video aria-label="抓取失败 · 夹爪未能抓起纸盒" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/target-topple-sdr.jpg" preload="none" src="assets/media/target-topple-1.5x-sdr-silent.mp4">
+         </video>
+        </figure>
+        <figure class="film">
+         <figcaption>
+          <strong>
+           训练初期 · 抓取失败
+          </strong>
+         </figcaption>
+         <video aria-label="训练初期 · 抓取失败" controls="" muted="" playsinline="" poster="assets/media/grasp-failure-sdr.jpg" preload="none" src="assets/media/grasp-failure-1.5x-sdr-silent.mp4">
+         </video>
+        </figure>
+       </div>
+       <div class="failure-pair">
+        <h4>
+         搬运停滞
+        </h4>
+        <p class="pair-intro">
+         纸盒已提起并经过障碍，随后在空中反复调整，未完成放置。
+        </p>
+        <figure class="film excerpt">
+         <figcaption>
+          <strong>
+           搬运片段 · 空中反复调整
+          </strong>
+         </figcaption>
+         <video aria-label="搬运片段 · 空中反复调整" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/residual-stall-sdr.jpg" preload="none" src="assets/media/residual-stall-1.5x-sdr-silent.mp4">
+         </video>
+        </figure>
+        <figure class="film">
+         <figcaption>
+          <strong>
+           训练初期 · 搬运停滞
+          </strong>
+         </figcaption>
+         <video aria-label="训练初期 · 搬运停滞" controls="" muted="" playsinline="" poster="assets/media/safe-failure-sdr.jpg" preload="none" src="assets/media/safe-failure-1.5x-sdr-silent.mp4">
+         </video>
+        </figure>
+       </div>
+      </div>
+     </article>
+     <article class="experiment-step step-result" id="r-trained">
+      <header class="step-heading">
+       <span class="step-number">
+        04
+       </span>
+       <div>
+        <h3>
+         GRPO 训练后 · 无碰撞抓取与放置
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       随后使用 GRPO 在真实机械臂上反复采集、评价并更新残差策略，基础 VLA 参数保持冻结。训练后的视频中，机械臂接近并抓起纸盒，带载绕过牛奶盒，最后将纸盒放入碗中，全程未发生碰撞。
+      </p>
+      <div class="step-media two-grid video-row">
+       <figure class="film excerpt">
+        <figcaption>
+         <strong>
+          搬运片段 · 跨越障碍并放置纸盒
+         </strong>
+        </figcaption>
+        <video aria-label="搬运片段 · 跨越障碍并放置纸盒" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/carry-place-success-sdr.jpg" preload="none" src="assets/media/carry-place-success-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          GRPO 训练后 · 完整执行过程
+         </strong>
+        </figcaption>
+        <video aria-label="GRPO 训练后 · 完整执行过程" controls="" id="static-evidence-video" muted="" playsinline="" poster="assets/media/safe-success-sdr.jpg" preload="none" src="assets/media/safe-success-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+      <div class="training-results">
+       <h3>
+        真机训练与独立评估
+       </h3>
+       <div class="training-facts">
+        <div>
+         <strong>
+          25 次
+         </strong>
+         <span>
+          有效策略更新
+         </span>
+        </div>
+        <div>
+         <strong>
+          200 条
+         </strong>
+         <span>
+          用于有效更新的轨迹（按配置计）
+         </span>
+        </div>
+        <div>
+         <strong>
+          8 条／组
+         </strong>
+         <span>
+          真实交互轨迹
+         </span>
+        </div>
+       </div>
+       <p>
+        GRPO 的学习信号来自同一组真实操作的结果差异。每轮用当前策略尝试不同动作，根据任务完成与碰撞情况计算奖励，再更新残差网络并继续采集。
+       </p>
+       <ol class="training-cycle">
+        <li>
+         每轮固定当前残差策略，在同一任务配置下采集 8 条真实交互轨迹，每轮操作后复位场景。通过残差采样进行不同的动作尝试，CBF 在执行过程中处理障碍约束。
+        </li>
+        <li>
+         采集后，根据任务是否完成、是否发生碰撞标注结果并计算奖励，将每条轨迹的奖励与组内平均值比较，得到相对优势。本项目保留同时包含安全成功与其他结果、且奖励存在差异的组；没有安全成功、全部安全成功或奖励缺乏差异的组不进入更新。这是本项目采用的训练筛选规则。
+        </li>
+        <li>
+         更新时，有效组中的 8 条轨迹共同参与学习，不只保留成功轨迹。GRPO 根据组内相对优势，提高较好结果对应动作的概率、降低较差结果对应动作的概率，并通过裁剪目标限制单次更新幅度。训练还加入 CBF 投影偏差辅助项，鼓励残差输出更接近安全过滤后的动作；整个过程只更新残差网络。
+        </li>
+        <li>
+         完成更新后保存更新后的策略，再采集下一组真实轨迹。未通过筛选的组跳过更新，继续使用当前策略采集，让后续学习建立在新的真实场景反馈上。
+        </li>
+       </ol>
+       <p>
+        更新记录包含 29 个批次，其中 25 个完成策略更新，4 个跳过更新。最终选用 update25。按每次有效更新 1 组、每组 8 条的记录配置计算，参与有效更新的训练轨迹为 200 条；跳过的批次与独立评估不计入其中。
+       </p>
+       <div class="rate-comparison">
+        <div>
+         <span>
+          训练前 · update0
+         </span>
+         <strong>
+          10%
+         </strong>
+         <span class="evaluation-count">
+          安全成功 2 / 20 次
+         </span>
+        </div>
+        <span aria-hidden="true">
+         →
+        </span>
+        <div>
+         <span>
+          训练后 · update25
+         </span>
+         <strong>
+          60%
+         </strong>
+         <span class="evaluation-count">
+          安全成功 12 / 20 次
+         </span>
+        </div>
+       </div>
+       <p class="evaluation-basis">
+        独立评估分别使用 update0 与 update25 模型权重，各测试 20 次。无碰撞完成抓取与放置的比例由 2/20 提高至 12/20。两组均启用残差策略与 CBF，比较的是 GRPO 训练前后的系统表现。
+       </p>
+      </div>
+     </article>
+    </div>
+    <div aria-labelledby="residual-method" class="method-panel">
+     <div class="method-heading">
+      <h3 id="residual-method">
+       控制与训练流程
+      </h3>
+      <span>
+       冻结基础策略，学习小幅动作调整
+      </span>
+     </div>
+     <ol class="method-stages">
+      <li>
+       <b>
+        VLA 生成基础动作
+       </b>
+       <span>
+        读取图像与机器人状态
+       </span>
+      </li>
+      <li>
+       <b>
+        残差策略调整动作
+       </b>
+       <span>
+        基础动作 ＋ 学习残差
+       </span>
+      </li>
+      <li>
+       <b>
+        物理 CBF 处理约束
+       </b>
+       <span>
+        必要时修改末端速度
+       </span>
+      </li>
+      <li>
+       <b>
+        机器人执行
+       </b>
+       <span>
+        记录任务完成与碰撞结果
+       </span>
+      </li>
+     </ol>
+    </div>
+    <div class="work-summary">
+     <h3>
+      我完成的真机系统工作
+     </h3>
+     <ul class="work-list">
+      <li>
+       将冻结 VLA、残差策略与执行 CBF 接入 Rizon 4，统一坐标系、动作尺度和夹爪指令。
+      </li>
+      <li>
+       实现分组采样、结果标注、有效组筛选与策略更新流程，并在真实场景中组织复位、重复采集和独立评估。
+      </li>
+      <li>
+       分别记录基础动作、残差和实际命令，分析训练后行为及失败原因。
+      </li>
+     </ul>
+    </div>
+    <section aria-labelledby="static-perception-title" class="perception-process">
+     <header>
+      <h3 id="static-perception-title">
+       静态场景识别与夹爪测量
+      </h3>
+      <p>
+       启动时识别牛奶盒、目标纸盒和放置碗，并采集夹爪区域的深度信息，为三维建模提供输入。下图来自同一次实验的不同初始化步骤，并非同一帧图像的连续处理结果。
+      </p>
+     </header>
+     <div class="perception-grid">
+      <figure>
+       <figcaption>
+        <h4>
+         01 场景识别与分割
+        </h4>
+        <p>
+         区分障碍物、抓取目标与放置区域，提取各物体的图像分割结果。
+        </p>
+       </figcaption>
+       <img alt="真实初始化图像：红色牛奶盒障碍、绿色目标纸盒与蓝色放置碗的分割结果" height="480" loading="lazy" src="assets/case-study/static-scene-segmentation.png" width="640"/>
+      </figure>
+      <figure>
+       <figcaption>
+        <h4>
+         02 夹爪分割与深度采样
+        </h4>
+        <p>
+         分割夹爪区域，在有效深度位置采样，为夹爪几何测量与拟合提供输入。
+        </p>
+       </figcaption>
+       <img alt="真实夹爪测量图像：夹爪分割区域与叠加的采样点" height="480" loading="lazy" src="assets/case-study/static-gripper-depth-points.png" width="640"/>
+      </figure>
+     </div>
+    </section>
+   </section>
+   <section class="project" id="dynamic">
+    <div class="section-label">
+     02 / 动态障碍 · 预测优化
+    </div>
+    <h2>
+     项目二 · 动态障碍下的预测避障
+    </h2>
+    <div class="paper-citation">
+     <p class="paper-context">
+      参与论文
+     </p>
+     <h3>
+      Beyond the Executed Prefix: Risk-Aware Full-Chunk Optimization for Robotic Manipulation
+     </h3>
+     <p class="paper-authors">
+      Junjie Ding, Zeyi Liu, Songqiao Hu,
+      <strong>
+       Rui Wu
+      </strong>
+      , Xiao He
+     </p>
+     <p class="paper-status">
+      研究进行中
+     </p>
+    </div>
+    <p class="section-intro">
+     项目一处理静态障碍，项目二在抓取任务中加入移动假手。其方法依据是 CRISP（利用后续动作预览进行风险预测与避障优化的方法）。VLA 预测的一段动作中，只有前几个动作会先被执行，但后面的动作仍可用于判断未来风险。利用这段预览，系统可以在机械臂与假手进一步接近前调整运动。
+    </p>
+    <p class="section-intro">
+     我围绕这一思路实现了假手三维定位与运动估计，将障碍预测和机械臂动作预测对齐，并接入异步优化与命令执行流程。CRISP 负责预测避障，CBF 根据当前三维几何关系与假手运动状态，检查待发送动作是否满足避障约束；基础 VLA 继续提供抓取与放置动作。
+    </p>
+    <div aria-label="项目二实验递进" class="experiment-roadmap two-stages">
+     <a href="#d-vla">
+      纯 VLA
+      <span>
+       动态障碍碰撞
+      </span>
+     </a>
+     <a href="#d-full">
+      ＋CRISP 预测
+      <span>
+       提前修正并接续任务
+      </span>
+     </a>
+    </div>
+    <div class="experiment-chain">
+     <article class="experiment-step" id="d-vla">
+      <header class="step-heading">
+       <span class="step-number">
+        01
+       </span>
+       <div>
+        <h3>
+         纯 VLA · 未避开障碍物
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       在这些测试中，假手进入并逐渐靠近机械臂，纯 VLA 仍沿原任务路径运动，没有出现针对假手的避让动作，最终与假手发生碰撞。正面和斜前方视频记录了不同测试的表现。
+      </p>
+      <div class="step-media three-grid video-row">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          假手与末端发生碰撞
+         </strong>
+        </figcaption>
+        <video aria-label="假手与末端发生碰撞" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hand-contact-front-sdr.jpg" preload="none" src="assets/media/hand-contact-front-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          纯 VLA · 正面
+         </strong>
+        </figcaption>
+        <video aria-label="纯 VLA · 正面" controls="" muted="" playsinline="" poster="assets/media/hand-vla-front-sdr.jpg" preload="none" src="assets/media/hand-vla-front-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          纯 VLA · 斜前方
+         </strong>
+        </figcaption>
+        <video aria-label="纯 VLA · 斜前方" controls="" muted="" playsinline="" poster="assets/media/hand-vla-oblique-sdr.jpg" preload="none" src="assets/media/hand-vla-oblique-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+     </article>
+     <article class="experiment-step step-result" id="d-full">
+      <header class="step-heading">
+       <span class="step-number">
+        02
+       </span>
+       <div>
+        <h3>
+         CBF＋CRISP · 预测避障与任务执行
+        </h3>
+       </div>
+      </header>
+      <p class="step-description">
+       加入 CRISP 后，机械臂在假手靠近时调整运动，假手撤出后继续完成放置。下方片段突出避让动作，完整视频保留抓取、避让与放置过程。
+      </p>
+      <div class="step-media result-excerpt">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          避让片段 · 假手接近与末端调整
+         </strong>
+        </figcaption>
+        <video aria-label="避让片段 · 假手接近与末端调整" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hand-avoidance-oblique-sdr.jpg" preload="none" src="assets/media/hand-avoidance-oblique-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+      <div class="step-media two-grid video-row">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          CBF＋CRISP · 斜前方
+         </strong>
+        </figcaption>
+        <video aria-label="CBF＋CRISP · 斜前方" controls="" muted="" playsinline="" poster="assets/media/hand-full-oblique-sdr.jpg" preload="none" src="assets/media/hand-full-oblique-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          CBF＋CRISP · 正面
+         </strong>
+        </figcaption>
+        <video aria-label="CBF＋CRISP · 正面" controls="" id="dynamic-evidence-video" muted="" playsinline="" poster="assets/media/hand-full-front-sdr.jpg" preload="none" src="assets/media/hand-full-front-1.5x-sdr-silent.mp4">
+        </video>
+       </figure>
+      </div>
+     </article>
+    </div>
+    <div aria-labelledby="dynamic-method" class="method-panel">
+     <div class="method-heading">
+      <h3 id="dynamic-method">
+       CRISP 预测避障与执行检查
+      </h3>
+     </div>
+     <p class="step-description">
+      执行过程分为预测、优化和检查三个环节。CRISP 根据后续接近风险调整动作，CBF 检查准备发送的命令是否满足当前约束。
+     </p>
+     <div class="control-lanes">
+      <div>
+       <span class="lane-label">
+        预测风险
+       </span>
+       <p>
+        <b>
+         剩余动作序列＋假手运动估计 → 未来接近关系
+        </b>
+        <small>
+         将机械臂的预测运动与假手的短时轨迹对齐，检查后续动作中的接近风险，而不只判断眼前的位置关系。
+        </small>
+       </p>
+      </div>
+      <div>
+       <span class="lane-label">
+        提前调整
+       </span>
+       <p>
+        <b>
+         CRISP 优化动作序列 → 提取当前可执行动作
+        </b>
+        <small>
+         在尽量保留原任务动作的同时降低预测风险，使机械臂在接近假手前就开始调整运动。
+        </small>
+       </p>
+      </div>
+      <div>
+       <span class="lane-label">
+        执行检查
+       </span>
+       <p>
+        <b>
+         最新状态＋待执行动作 → CBF 检查 → 发送命令
+        </b>
+        <small>
+         CBF 根据末端与假手的当前模型间隙、假手运动估计及待执行动作，检查两者的接近速度是否满足屏障函数约束。检查通过时保留该动作；不满足时，在允许的动作范围内求解修正。它检查的是当前动作对避障约束的影响，而不是重新规划整条绕行路径。
+        </small>
+       </p>
+      </div>
+     </div>
+     <div class="method-bottom">
+      <p>
+       RGB-D 感知持续更新假手的三维位置与运动状态。感知、预测优化和控制分开调度，执行端结合最新状态检查可用的优化结果，使提前规划与当前安全检查衔接。
+      </p>
+     </div>
+    </div>
+    <div class="prediction-inset">
+     <div>
+      <h3>
+       CRISP 优化前后的预测间隙
+      </h3>
+      <p>
+       这张图取自一次实际规划记录。沿原动作继续运动，约 0.36 秒后的末节点预测模型间隙为 −3.69 mm；经 CRISP 优化后，该节点变为 +28.83 mm。它展示了同一状态下，优化如何改变后续的预测接近关系。
+      </p>
+      <dl class="solve-facts">
+       <div>
+        <dt>
+         预测节点
+        </dt>
+        <dd>
+         7 个
+        </dd>
+       </div>
+       <div>
+        <dt>
+         本轮计算
+        </dt>
+        <dd>
+         23.69 ms
+        </dd>
+       </div>
+       <div>
+        <dt>
+         SQP 迭代
+        </dt>
+        <dd>
+         3 次
+        </dd>
+       </div>
+      </dl>
+     </div>
+     <figure>
+      <img alt="七个未来节点中，CRISP 优化前后预测模型间隙的变化，末节点由负3.69毫米变为正28.83毫米" height="430" loading="lazy" src="assets/case-study/full-gap-prediction.svg" width="880"/>
+      <figcaption>
+       横轴为从规划时刻起的未来时间，纵轴为预测模型间隙。两条曲线来自同一次规划计算，不代表实际测得的运动轨迹。
+      </figcaption>
+     </figure>
+    </div>
+   </section>
+   <section class="project foundation" id="foundation">
+    <div class="section-label">
+     共同实验基础
+    </div>
+    <h2>
+     实验基础 · 示教采集与 VLA 微调
+    </h2>
+    <p class="section-intro">
+     两个项目共用我搭建的示教、数据处理与模型微调流程。先获得能根据文本完成抓取与放置的基础策略，再分别开展静态场景的残差强化学习和动态场景的预测避障实验。
+    </p>
+    <div class="foundation-methods">
+     <article class="foundation-stage">
+      <h3>
+       01　VR 示教与双相机采集
+      </h3>
+      <p>
+       使用 Meta Quest 3 手柄控制机械臂末端和夹爪，人工完成接近、抓取、搬运与放置。前视相机记录桌面与目标关系，腕部相机记录局部抓取过程。
+      </p>
+      <div class="upstream-credit vr-credits">
+       <h4>
+        VR 开源项目与本项目适配
+       </h4>
+       <ul>
+        <li>
+         <a href="https://github.com/xiaoxiaoxh/TactAR_APP" rel="noopener" target="_blank">
+          xiaoxiaoxh / TactAR_APP
+         </a>
+         ，提供 Meta Quest 3 头显端应用，用于获取并发送手柄位姿与按键信息。
+        </li>
+        <li>
+         <a href="https://github.com/Thu-WangMX/Reactive-Diffusion-Policy-on-Flexiv-rizon4s" rel="noopener" target="_blank">
+          Thu-WangMX / Reactive-Diffusion-Policy-on-Flexiv-rizon4s
+         </a>
+         ，提供单臂消息处理、握键离合及相对位姿映射的参考实现。
+        </li>
+        <li>
+         <a href="https://github.com/xiaoxiaoxh/vr-teleoperation" rel="noopener" target="_blank">
+          xiaoxiaoxh / vr-teleoperation
+         </a>
+         ，用于前期遥操作方案与坐标映射调研参考。
+        </li>
+       </ul>
+       <p>
+        在上述开源工具与参考实现的基础上，本项目完成 Rizon 4 控制接口、动作尺度与坐标映射适配，并实现双相机与机器人状态的同步采集、轨迹保存和训练数据转换。
+       </p>
+      </div>
+      <p>
+       每条示教按 episode 保存为 HDF5，同时记录两路 RGB、机器人状态、夹爪反馈、动作指令与时间戳。任务文本随轨迹保存，用于后续语言条件训练。
+      </p>
+      <div class="two-grid video-row">
+       <figure class="film">
+        <figcaption>
+         <strong>
+          VR 遥操作系统
+         </strong>
+        </figcaption>
+        <video aria-label="VR 遥操作系统" controls="" muted="" playsinline="" poster="assets/media/vr-system-sdr.jpg" preload="none" src="assets/media/vr-system-1.5x-sdr-silent.mp4">
+         您的浏览器不支持视频。
+        </video>
+       </figure>
+       <figure class="film">
+        <figcaption>
+         <strong>
+          纸杯抓取示教
+         </strong>
+        </figcaption>
+        <video aria-label="纸杯抓取示教" controls="" muted="" playsinline="" poster="assets/media/vr-cup-sdr.jpg" preload="none" src="assets/media/vr-cup-1.5x-sdr-silent.mp4">
+         您的浏览器不支持视频。
+        </video>
+       </figure>
+      </div>
+     </article>
+     <article class="foundation-stage">
+      <h3>
+       02　示教规模与数据集构建
+      </h3>
+      <table class="dataset-table">
+       <thead>
+        <tr>
+         <th>
+          示教数据
+         </th>
+         <th>
+          轨迹总数
+         </th>
+         <th>
+          数据帧总数
+         </th>
+         <th>
+          记录频率
+         </th>
+        </tr>
+       </thead>
+       <tbody>
+        <tr>
+         <td>
+          桌面抓取与放置
+         </td>
+         <td>
+          315
+         </td>
+         <td>
+          31,780
+         </td>
+         <td>
+          15 Hz
+         </td>
+        </tr>
+       </tbody>
+      </table>
+      <p>
+       示教数据覆盖纸杯、纸盒等物体的抓取与放置，合计 315 条轨迹、31,780 帧，包含任务示范及补充采集。示教用于基础模型微调，与后续强化学习交互分开记录。
+      </p>
+      <p>
+       将原始 episode 转换为 LeRobot v2.1 格式，按时间关系组织“当前观测—后续动作”训练样本，并保留任务标签和轨迹边界。转换时检查时间连续性，对无法使用的区间进行分段，避免把断档两侧的状态与动作拼成连续示范。
+      </p>
+      <p>
+       单步输入包含前视 RGB、腕部 RGB、末端位姿和夹爪状态；动作由三维平移速度、三维旋转速度与夹爪指令组成。统一坐标系、旋转表示及夹爪范围，使训练数据与部署接口使用一致的含义。
+      </p>
+     </article>
+     <article class="foundation-stage">
+      <h3>
+       03　π0.5 的监督微调
+      </h3>
+      <p>
+       <span>
+        基础模型权重为
+        <a href="https://github.com/Physical-Intelligence/openpi" rel="noopener" target="_blank">
+         Physical Intelligence π0.5 Base（OpenPI，
+         <code>
+          pi05_base
+         </code>
+         ）
+        </a>
+        。使用真实机械臂示教进行 LoRA 微调。任务文本、双相机图像与机器人状态作为输入，示教动作序列作为监督目标。后续自主抓取实验使用微调后的模型权重。
+       </span>
+      </p>
+      <p>
+       在视觉语言主干与动作专家上使用 LoRA，训练适配参数。模型每次输出 10 步动作块；归一化与动作尺度配置随模型一起用于真机推理。
+      </p>
+     </article>
+     <article class="foundation-stage">
+      <h3>
+       04　文本任务与自主执行
+      </h3>
+      <p>
+       部署时输入任务指令，VLA 持续读取两路相机和机器人状态，生成后续动作。控制端将归一化动作转换为末端运动与夹爪命令，并随着新观测更新动作。
+      </p>
+      <p>
+       下面先比较微调前后的纸杯抓取，再检查加入干扰物、改变目标与放置位置后的表现。
+      </p>
+     </article>
+    </div>
+    <div class="finetuning-comparison">
+     <h3>
+      微调前后 · 纸杯抓取
+     </h3>
+     <p>
+      微调前，机械臂运动明显偏离任务，末端向上移动，远离桌面上的纸杯，无法完成接近目标和抓取操作。在本实验配置下，通用预训练模型无法直接执行纸杯抓取任务，需要适配相机观测、机器人状态和动作接口，并通过真机示教学习对应的操作。
+     </p>
+     <p>
+      真机示教建立了本场景下图像、文本、机器人状态与正确动作之间的对应关系。完成数据适配和微调后，机械臂能够接近纸杯、完成抓取，并将其放入碗中。
+     </p>
+     <div class="two-grid video-row">
+      <figure class="film">
+       <figcaption>
+        <strong>
+         微调前 · 未完成纸杯抓取
+        </strong>
+       </figcaption>
+       <video aria-label="微调前 · 未完成纸杯抓取" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/pretrained-sdr.jpg" preload="none" src="assets/media/pretrained-1.5x-sdr-silent.mp4">
+       </video>
+      </figure>
+      <figure class="film">
+       <figcaption>
+        <strong>
+         微调后 · 纸杯抓取与放置
+        </strong>
+       </figcaption>
+       <video aria-label="微调后 · 纸杯抓取与放置" controls="" muted="" playsinline="" poster="assets/media/finetuned-cup-simple-sdr.jpg" preload="none" src="assets/media/finetuned-cup-simple-1.5x-sdr-silent.mp4">
+       </video>
+      </figure>
+     </div>
+    </div>
+    <div class="finetuning-comparison">
+     <h3>
+      多物体场景 · 按指令选择目标与放置位置
+     </h3>
+     <p>
+      在桌面加入多个非目标物体作为干扰，同时改变抓取目标和碗的位置。两段视频分别要求抓取纸杯与纸盒。模型需要依据文本选出目标，在干扰物之间完成抓取，再根据当前画面找到碗并放置。
+     </p>
+     <div class="two-grid video-row">
+      <figure class="film">
+       <figcaption>
+        <strong>
+         目标 · 纸杯
+        </strong>
+       </figcaption>
+       <video aria-label="目标 · 纸杯" controls="" muted="" playsinline="" poster="assets/media/finetuned-cup-sdr.jpg" preload="none" src="assets/media/finetuned-cup-1.5x-sdr-silent.mp4">
+       </video>
+      </figure>
+      <figure class="film">
+       <figcaption>
+        <strong>
+         目标 · 纸盒
+        </strong>
+       </figcaption>
+       <video aria-label="目标 · 纸盒" controls="" muted="" playsinline="" poster="assets/media/finetuned-complex-sdr.jpg" preload="none" src="assets/media/finetuned-complex-1.5x-sdr-silent.mp4">
+       </video>
+      </figure>
+     </div>
+    </div>
+    <div class="hardware-setup">
+     <h3>
+      实验硬件与基础模型
+     </h3>
+     <table class="dataset-table">
+      <tbody>
+       <tr>
+        <th>
+         机械臂
+        </th>
+        <td>
+         Flexiv Rizon 4，7 自由度；Flexiv RDK 1.9
+        </td>
+       </tr>
+       <tr>
+        <th>
+         电动夹爪
+        </th>
+        <td>
+         Flexiv GN01，最大开口 100 mm
+        </td>
+       </tr>
+       <tr>
+        <th>
+         前视相机
+        </th>
+        <td>
+         Intel RealSense D435，提供桌面 RGB-D 观测
+        </td>
+       </tr>
+       <tr>
+        <th>
+         腕部相机
+        </th>
+        <td>
+         Intel RealSense D455，提供近距离抓取图像
+        </td>
+       </tr>
+       <tr>
+        <th>
+         示教设备
+        </th>
+        <td>
+         Meta Quest 3 及手柄
+        </td>
+       </tr>
+       <tr>
+        <th>
+         基础操作模型
+        </th>
+        <td>
+         Physical Intelligence π0.5 Base（pi05_base），OpenPI 实现；PaliGemma / Gemma 2B 视觉语言主干＋300M 动作专家，采用 LoRA 微调
+        </td>
+       </tr>
+       <tr>
+        <th>
+         数据与动作接口
+        </th>
+        <td>
+         LeRobot v2.1；15 Hz 示教数据，10 步动作块；7 维动作包含平移、旋转与夹爪指令
+        </td>
+       </tr>
+       <tr>
+        <th>
+         运行环境
+        </th>
+        <td>
+         Ubuntu 22.04.5 LTS（Jammy）；VLA 推理、视觉感知与机械臂控制独立运行
+        </td>
+       </tr>
+      </tbody>
+     </table>
+    </div>
+   </section>
+   <section class="materials" id="materials">
+    <h2>
+     基础工具与来源
+    </h2>
+    <div class="source-credits">
+     <p>
+      除 VR 工具外，基础模型与训练使用
+      <a href="https://github.com/Physical-Intelligence/openpi" rel="noopener" target="_blank">
+       OpenPI / π0.5
+      </a>
+      ，数据组织采用
+      <a href="https://github.com/huggingface/lerobot" rel="noopener" target="_blank">
+       LeRobot
+      </a>
+      ，视觉感知使用
+      <a href="https://github.com/IDEA-Research/GroundingDINO" rel="noopener" target="_blank">
+       GroundingDINO
+      </a>
+      与
+      <a href="https://github.com/ChaoningZhang/MobileSAM" rel="noopener" target="_blank">
+       MobileSAM
+      </a>
+      ；机器人接口与夹爪几何参考来自
+      <a href="https://github.com/flexivrobotics/flexiv_rdk" rel="noopener" target="_blank">
+       Flexiv RDK
+      </a>
+      和
+      <a href="https://github.com/flexivrobotics/flexiv_description" rel="noopener" target="_blank">
+       flexiv_description
+      </a>
+      。
+     </p>
+     <p>
+      离线运动学分析还使用了 Flexiv 官方
+      <a href="https://github.com/flexivrobotics/flexiv_description" rel="noopener" target="_blank">
+       flexiv_description
+      </a>
+      中的 Rizon 4 运动学参数（
+      <code>
+       default_kinematics.yaml
+      </code>
+      ）、关节限位（
+      <code>
+       joint_limits.yaml
+      </code>
+      ）及机器人描述文件。基于这些参数计算正运动学与雅可比矩阵，用于分析实验中的机械臂构型和运动问题；并非另一个在线避障模块。
+     </p>
+    </div>
+   </section>
+  </main>
+  <footer class="wrap">
+   <span>
+    吴睿 · 2026
+   </span>
+   <a href="#">
+    返回顶部 ↑
+   </a>
+  </footer>
+ </body>
+</html>

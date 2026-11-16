@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "如引用本展示页，请注明作者和所使用的发布版本；论文方法请引用相应论文。"
+title: "真实机械臂上的自主操作与避障"
+authors:
+  - family-names: Wu
+    given-names: Rui
+version: 1.0.0
+type: other
