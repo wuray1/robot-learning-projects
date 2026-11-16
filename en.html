@@ -1,0 +1,874 @@
+html
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>
+   Autonomous Manipulation and Obstacle Avoidance on a Real Robot Arm · Rui Wu
+  </title>
+<meta content="Rui Wu’s real-robot research on Rizon 4, featuring VLSA-RL residual reinforcement learning and CRISP predictive obstacle avoidance, including VR demonstrations, dataset construction, VLA fine-tuning, real-world interaction training, and experimental evaluation." name="description"/>
+<link href="portfolio.css?v=20261116-bilingual" rel="stylesheet"/>
+<script defer="" src="portfolio.js?v=20261116-bilingual">
+</script>
+<link href="index.html" hreflang="zh-CN" rel="alternate"/>
+<link href="en.html" hreflang="en" rel="alternate"/>
+</head>
+<body>
+<a class="skip" href="#projects">Skip to projects </a>
+<header class="page-header wrap">
+<nav aria-label="Select language" class="language-switch">
+<a data-language-link="" href="index.html" hreflang="zh-CN" lang="zh-CN">中文 </a>
+<a aria-current="page" data-language-link="" href="en.html" hreflang="en" lang="en">English </a>
+</nav>
+<h1>
+    Autonomous Manipulation and Obstacle Avoidance on a Real Robot Arm
+   </h1>
+<p class="lead">Both projects were carried out during my internship at the Safety Control Technology Research Center, Tsinghua University. I contributed to two papers on safety control for embodied intelligence and, building on that research, designed and implemented experimental systems for a real robot arm. From VR demonstration interfaces, data collection and processing, and model fine-tuning to obstacle-avoidance integration, real-robot reinforcement learning, and experimental evaluation, I independently completed the system development, algorithm deployment, and real-robot validation for both projects. </p>
+<div class="identity">
+<p class="author-name">Rui Wu </p>
+<p class="author-email">wurui011223@163.com </p>
+</div>
+<div aria-label="Autonomous execution pipeline" class="autonomy-intro">
+<p>Autonomous execution from text instructions </p>
+<ol class="autonomy-flow">
+<li>Enter a task instruction </li>
+<li>Camera images + robot state </li>
+<li>VLA generates actions </li>
+<li>Selected method adjusts actions </li>
+<li>Robot executes and observes again </li>
+</ol>
+<p class="autonomy-example">A VLA (vision-language-action model) converts camera images, task text, and robot state into actions. Except for the comparison before fine-tuning, all autonomous manipulation demonstrations on this page use base policies that I fine-tuned from OpenPI’s π0.5 Base (pi05_base) using real-robot demonstration data. </p>
+<p class="autonomy-example">For example, enter “Pick up the cup and place it in the bowl.” </p>
+</div>
+<nav aria-label="Page navigation">
+<a href="#residual">01 Static Obstacles · Learned Avoidance </a>
+<a href="#dynamic">02 Dynamic Obstacles · Predictive Avoidance </a>
+<a href="#foundation">Experimental Foundation </a>
+<a href="#materials">Tools and Sources </a>
+</nav>
+</header>
+<main class="wrap">
+<section aria-label="Overview of the two projects" class="overview" id="projects">
+<div class="two-grid project-grid">
+<article class="project-preview">
+<h2>
+       Static Obstacles · Learned Avoidance
+      </h2>
+<p>Following the residual-learning approach in VLSA-RL, I used GRPO (Group Relative Policy Optimization) to train a small action-correction network under CBF (Control Barrier Function) obstacle-avoidance constraints. The base VLA remains frozen, and both training and evaluation take place on the real robot. </p>
+<figure class="film excerpt">
+<figcaption>
+<strong>
+         CBF + GRPO · Box Grasping, Static Obstacle Avoidance, and Placement
+        </strong>
+</figcaption>
+<video aria-label="CBF + GRPO · Box Grasping, Static Obstacle Avoidance, and Placement" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hero-static-10s.jpg?v=2" preload="metadata" src="assets/media/hero-static-10s.mp4?v=2">
+</video>
+</figure>
+</article>
+<article class="project-preview">
+<h2>
+       Dynamic Obstacles · Predictive Avoidance
+      </h2>
+<p>Following the approach in CRISP (risk-aware optimization using previews of subsequent actions), the system combines estimates of the dummy hand’s motion with the robot’s subsequent actions to predict proximity risks and adjust motion in advance, with a CBF check before execution. This project does not train a residual network. </p>
+<figure class="film excerpt">
+<figcaption>
+<strong>
+         CBF + CRISP · Paper Cup Grasping, Dynamic Obstacle Avoidance, and Placement
+        </strong>
+</figcaption>
+<video aria-label="CBF + CRISP · Paper Cup Grasping, Dynamic Obstacle Avoidance, and Placement" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hero-dynamic-10s.jpg?v=2" preload="metadata" src="assets/media/hero-dynamic-10s.mp4?v=2">
+</video>
+</figure>
+</article>
+</div>
+<div class="scale-strip">
+<div>
+<strong>
+       25
+      </strong>
+<span>Real-robot GRPO policy updates </span>
+</div>
+<div>
+<strong>
+       315
+      </strong>
+<span>Demonstration trajectories </span>
+</div>
+<div>
+<strong>
+       31,780
+      </strong>
+<span>Demonstration frames </span>
+</div>
+<div>
+<strong>
+       10% → 60%
+      </strong>
+<span>Safe success rate before and after GRPO training · 20 trials each </span>
+</div>
+</div>
+</section>
+<section class="project" id="residual">
+<div class="section-label">
+     01 / Static Obstacles · Residual Learning
+    </div>
+<h2>
+     Project One · Learning to Avoid Static Obstacles
+    </h2>
+<div class="paper-citation">
+<p class="paper-context">Co-authored paper </p>
+<h3>
+      VLSA-RL: Can a Small Residual Policy Enable Safety-Aware VLA Adaptation?
+     </h3>
+<p class="paper-authors">Songqiao Hu, Zeyi Liu, <strong>
+       Rui Wu
+      </strong>, Jinjia Chen, HO WUN ZENG, Wei Geng, Yingjian Zhang, Xiao He </p>
+<p class="paper-status">ICLR 2027 · Rebuttal Stage </p>
+</div>
+<p class="section-intro">VLSA-RL investigates how a vision-language-action model with existing grasping capabilities can balance operational safety and task success near obstacles. A CBF can correct unsafe actions, but a frozen base model does not learn obstacle avoidance from those corrections, and repeated intervention may interfere with grasping and placement. The paper trains a small residual network through reinforcement learning to adjust the base actions so that they better satisfy safety constraints while continuing to complete the task, without retraining the entire base model. </p>
+<p class="section-intro">Following this approach, I designed a box-grasping experiment in which the robot follows a text instruction to carry a brown cardboard box around a milk carton and place it in a bowl. The real-robot system integrates visual localization, action residuals, and CBF filtering into one execution pipeline, while handling coordinate frames, action scaling, and control timing. The residual policy learns directly from task completion and collision feedback during physical operation. </p>
+<p class="evidence-guide">The experiments compare VLA-only execution, the addition of CBF filtering, early-stage residual-policy training, and performance after GRPO training. </p>
+<div aria-label="Project One experiment progression" class="experiment-roadmap">
+<a href="#r-baseline">VLA Only <span>Obstacle not avoided </span>
+</a>
+<a href="#r-cbf">＋CBF <span>End effector avoids obstacle; payload still collides </span>
+</a>
+<a href="#r-residual">+ Residual Policy (Early Training) <span>Grasping failure / stalled transport </span>
+</a>
+<a href="#r-trained">+ Real-Robot GRPO Training <span>Task completed without collision </span>
+</a>
+</div>
+<div class="experiment-chain">
+<article class="experiment-step" id="r-baseline">
+<header class="step-heading">
+<span class="step-number">01 </span>
+<div>
+<h3>
+         VLA Only · Obstacle Not Avoided
+        </h3>
+</div>
+</header>
+<p class="step-description">The fine-tuned VLA directly executes the box-grasping task without an obstacle-avoidance algorithm. In the video, the gripper moves straight toward the target box without going around the milk carton, then knocks the carton over. </p>
+<div class="step-media two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+          Collision Clip · Milk Carton Knocked Over
+         </strong>
+</figcaption>
+<video aria-label="Collision Clip · Milk Carton Falling Over" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/no-cbf-impact-sdr.jpg" preload="none" src="assets/media/no-cbf-impact-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          VLA Only · Full Execution
+         </strong>
+</figcaption>
+<video aria-label="VLA Only · Full Execution" controls="" muted="" playsinline="" poster="assets/media/no-cbf-collision-sdr.jpg" preload="none" src="assets/media/no-cbf-collision-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</article>
+<article class="experiment-step" id="r-cbf">
+<header class="step-heading">
+<span class="step-number">02 </span>
+<div>
+<h3>
+         CBF · End-Effector Avoidance and Payload Collision
+        </h3>
+</div>
+</header>
+<p class="step-description">CBF filtering is added to the base VLA to address collision risks as the gripper approaches the milk carton. In the video, the end effector can move around the obstacle, but a collision still occurs while transporting the grasped box. This implementation models only the gripper’s collision geometry and does not include the grasped box in the avoidance constraints. Considering gripper avoidance alone is therefore insufficient to ensure safety throughout transport. </p>
+<div class="step-media two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+          Collision Clip · Box Collides with Milk Carton
+         </strong>
+</figcaption>
+<video aria-label="Collision Clip · Box Collides with Milk Carton" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/milk-collision-sdr.jpg" preload="none" src="assets/media/milk-collision-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          CBF Only · Full Execution
+         </strong>
+</figcaption>
+<video aria-label="CBF Only · Full Execution" controls="" muted="" playsinline="" poster="assets/media/collision-success-sdr.jpg" preload="none" src="assets/media/collision-success-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</article>
+<article class="experiment-step" id="r-residual">
+<header class="step-heading">
+<span class="step-number">03 </span>
+<div>
+<h3>
+         Early Training · Grasping Failure and Stalled Transport
+        </h3>
+</div>
+</header>
+<p class="step-description">To improve transport with a payload, a learnable residual policy is inserted between the VLA and CBF. Early in training, action adjustments can disrupt grasping position, orientation, and subsequent placement. The following two videos show a grasping failure and stalled transport, respectively. In the first, the gripper knocks the target box over instead of picking it up. In the second, the robot repeatedly adjusts its pose in midair after passing the obstacle and fails to complete placement. These behaviors reveal shortcomings in grasping precision and task continuity during early training. The residual policy must learn obstacle avoidance while preserving the existing grasping capability and continuing through transport and placement. </p>
+<div class="failure-pairs two-grid">
+<div class="failure-pair">
+<h4>
+         Grasping Failure
+        </h4>
+<p class="pair-intro">The grasp fails as the gripper knocks the box over instead of picking it up. </p>
+<figure class="film">
+<figcaption>
+<strong>
+           Grasping Failure · Gripper Fails to Pick Up the Box
+          </strong>
+</figcaption>
+<video aria-label="Grasping Failure · Gripper Fails to Pick Up the Box" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/target-topple-sdr.jpg" preload="none" src="assets/media/target-topple-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+           Early Training · Grasping Failure
+          </strong>
+</figcaption>
+<video aria-label="Early Training · Grasping Failure" controls="" muted="" playsinline="" poster="assets/media/grasp-failure-sdr.jpg" preload="none" src="assets/media/grasp-failure-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+<div class="failure-pair">
+<h4>
+         Stalled Transport
+        </h4>
+<p class="pair-intro">The box has been lifted and carried past the obstacle, but repeated adjustments in midair prevent placement. </p>
+<figure class="film excerpt">
+<figcaption>
+<strong>
+           Transport Clip · Repeated Adjustments in Midair
+          </strong>
+</figcaption>
+<video aria-label="Transport Clip · Repeated Adjustments in Midair" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/residual-stall-sdr.jpg" preload="none" src="assets/media/residual-stall-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+           Early Training · Stalled Transport
+          </strong>
+</figcaption>
+<video aria-label="Early Training · Stalled Transport" controls="" muted="" playsinline="" poster="assets/media/safe-failure-sdr.jpg" preload="none" src="assets/media/safe-failure-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</div>
+</article>
+<article class="experiment-step step-result" id="r-trained">
+<header class="step-heading">
+<span class="step-number">04 </span>
+<div>
+<h3>
+         After GRPO Training · Collision-Free Grasping and Placement
+        </h3>
+</div>
+</header>
+<p class="step-description">GRPO is then used to repeatedly collect trajectories, evaluate outcomes, and update the residual policy on the real robot, while the base VLA parameters remain frozen. In the post-training video, the robot approaches and grasps the box, carries it past the milk carton, and places it in the bowl without any collision. </p>
+<div class="step-media two-grid video-row">
+<figure class="film excerpt">
+<figcaption>
+<strong>
+          Transport Clip · Clearing the Obstacle and Placing the Box
+         </strong>
+</figcaption>
+<video aria-label="Transport Clip · Clearing the Obstacle and Placing the Box" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/carry-place-success-sdr.jpg" preload="none" src="assets/media/carry-place-success-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          After GRPO Training · Full Execution
+         </strong>
+</figcaption>
+<video aria-label="After GRPO Training · Full Execution" controls="" id="static-evidence-video" muted="" playsinline="" poster="assets/media/safe-success-sdr.jpg" preload="none" src="assets/media/safe-success-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+<div class="training-results">
+<h3>
+        Real-Robot Training and Independent Evaluation
+       </h3>
+<div class="training-facts">
+<div>
+<strong>
+          25
+         </strong>
+<span>Effective policy updates </span>
+</div>
+<div>
+<strong>
+          200
+         </strong>
+<span>Trajectories used in effective updates (calculated from the configuration) </span>
+</div>
+<div>
+<strong>
+          8 per group
+         </strong>
+<span>Real-world interaction trajectories </span>
+</div>
+</div>
+<p>GRPO derives its learning signal from differences in outcomes within a group of real-world interactions. In each round, the current policy tries different actions, rewards are calculated from task completion and collisions, and the residual network is updated before further collection. </p>
+<ol class="training-cycle">
+<li>In each round, the current residual policy is held fixed while 8 real-world interaction trajectories are collected under the same task configuration, with the scene reset after each run. Residual sampling produces different action attempts, while the CBF handles obstacle constraints during execution. </li>
+<li>After collection, outcomes are labeled according to task completion and collisions, and rewards are calculated. Each trajectory’s reward is compared with the group mean to obtain a relative advantage. This project retains groups that contain both safe successes and other outcomes, with variation in rewards. Groups with no safe successes, only safe successes, or no reward variation are excluded from updates. These are the training selection rules used in this project. </li>
+<li>All 8 trajectories in an accepted group contribute to learning, rather than retaining only successful trajectories. Based on within-group relative advantages, GRPO increases the probability of actions associated with better outcomes and decreases that of actions associated with poorer outcomes, while using a clipped objective to limit each update. Training also includes an auxiliary CBF projection-deviation term to encourage residual outputs to be closer to the actions produced by safety filtering. Only the residual network is updated throughout this process. </li>
+<li>After an update, the updated policy is saved and the next group of real-world trajectories is collected. Groups that fail the selection criteria are skipped, and collection continues with the current policy, so subsequent learning is based on new feedback from the real environment. </li>
+</ol>
+<p>The update records contain 29 batches, of which 25 resulted in policy updates and 4 were skipped. The final policy selected was update25. With 1 group per effective update and 8 trajectories per group, the recorded configuration gives 200 training trajectories used in effective updates. Skipped batches and independent evaluation are excluded from this count. </p>
+<div class="rate-comparison">
+<div>
+<span>Before Training · update0 </span>
+<strong>
+          10%
+         </strong>
+<span class="evaluation-count">Safe successes 2 / 20 </span>
+</div>
+<span aria-hidden="true">→ </span>
+<div>
+<span>After Training · update25 </span>
+<strong>
+          60%
+         </strong>
+<span class="evaluation-count">Safe successes 12 / 20 </span>
+</div>
+</div>
+<p class="evaluation-basis">Independent evaluation used the update0 and update25 model weights, with 20 trials each. The proportion of trials completing grasping and placement without collision increased from 2/20 to 12/20. Both groups used the residual policy and CBF, comparing system performance before and after GRPO training. </p>
+</div>
+</article>
+</div>
+<div aria-labelledby="residual-method" class="method-panel">
+<div class="method-heading">
+<h3 id="residual-method">
+       Control and Training Pipeline
+      </h3>
+<span>Freeze the base policy and learn small action adjustments </span>
+</div>
+<ol class="method-stages">
+<li>
+<b>
+        VLA generates base actions
+       </b>
+<span>Read images and robot state </span>
+</li>
+<li>
+<b>
+        Residual policy adjusts actions
+       </b>
+<span>Base actions + learned residual </span>
+</li>
+<li>
+<b>
+        Execution-level CBF handles constraints
+       </b>
+<span>Modify end-effector velocity when needed </span>
+</li>
+<li>
+<b>
+        Robot executes
+       </b>
+<span>Record task completion and collisions </span>
+</li>
+</ol>
+</div>
+<div class="work-summary">
+<h3>
+      My Work on the Real-Robot System
+     </h3>
+<ul class="work-list">
+<li>Integrated the frozen VLA, residual policy, and execution-level CBF with Rizon 4, aligning coordinate frames, action scales, and gripper commands. </li>
+<li>Implemented grouped sampling, outcome labeling, group selection, and policy updates, and organized scene resets, repeated data collection, and independent evaluation in the real environment. </li>
+<li>Recorded base actions, residuals, and actual commands separately to analyze post-training behavior and failure causes. </li>
+</ul>
+</div>
+<section aria-labelledby="static-perception-title" class="perception-process">
+<header>
+<h3 id="static-perception-title">
+       Static Scene Recognition and Gripper Measurement
+      </h3>
+<p>At startup, the system identifies the milk carton, target box, and destination bowl, and collects depth information in the gripper region as input for 3D modeling. The images below come from different initialization steps in the same experiment, rather than successive processing stages of a single frame. </p>
+</header>
+<div class="perception-grid">
+<figure>
+<figcaption>
+<h4>
+         01 Scene Recognition and Segmentation
+        </h4>
+<p>Distinguish the obstacle, grasping target, and placement region, and obtain an image segmentation for each object. </p>
+</figcaption>
+<img alt="Recorded initialization image showing segmentation of the milk carton obstacle in red, target box in green, and destination bowl in blue" height="480" loading="lazy" src="assets/case-study/static-scene-segmentation.png" width="640"/>
+</figure>
+<figure>
+<figcaption>
+<h4>
+         02 Gripper Segmentation and Depth Sampling
+        </h4>
+<p>Segment the gripper region and sample points with valid depth to provide input for gripper geometry measurement and fitting. </p>
+</figcaption>
+<img alt="Recorded gripper measurement image showing the segmented gripper region and overlaid sample points" height="480" loading="lazy" src="assets/case-study/static-gripper-depth-points.png" width="640"/>
+</figure>
+</div>
+</section>
+</section>
+<section class="project" id="dynamic">
+<div class="section-label">
+     02 / Dynamic Obstacles · Predictive Optimization
+    </div>
+<h2>
+     Project Two · Predictive Avoidance of Dynamic Obstacles
+    </h2>
+<div class="paper-citation">
+<p class="paper-context">Co-authored paper </p>
+<h3>
+      Beyond the Executed Prefix: Risk-Aware Full-Chunk Optimization for Robotic Manipulation
+     </h3>
+<p class="paper-authors">Junjie Ding, Zeyi Liu, Songqiao Hu, <strong>
+       Rui Wu
+      </strong>, Xiao He </p>
+<p class="paper-status">Research in Progress </p>
+</div>
+<p class="section-intro">Project One addresses static obstacles, while Project Two introduces a moving dummy hand into a grasping task. The method is based on CRISP, which uses previews of subsequent actions to predict risk and optimize obstacle avoidance. Of the action sequence predicted by the VLA, only the first few actions are executed initially, but the remaining actions can still be used to assess future risks. This preview allows the system to adjust motion before the robot and dummy hand move closer together. </p>
+<p class="section-intro">Following this approach, I implemented 3D localization and motion estimation for the dummy hand, aligned obstacle predictions with robot action predictions, and integrated them with asynchronous optimization and command execution. CRISP provides predictive obstacle avoidance, while the CBF uses the current 3D geometry and the hand’s motion state to check whether the outgoing action satisfies the avoidance constraints. The base VLA continues to provide grasping and placement actions. </p>
+<div aria-label="Project Two experiment progression" class="experiment-roadmap two-stages">
+<a href="#d-vla">VLA Only <span>Collision with a moving obstacle </span>
+</a>
+<a href="#d-full">+ CRISP Prediction <span>Adjust in advance and continue the task </span>
+</a>
+</div>
+<div class="experiment-chain">
+<article class="experiment-step" id="d-vla">
+<header class="step-heading">
+<span class="step-number">01 </span>
+<div>
+<h3>
+         VLA Only · Obstacle Not Avoided
+        </h3>
+</div>
+</header>
+<p class="step-description">In these tests, as the dummy hand enters the scene and approaches the robot, the VLA-only system continues along its task path without taking evasive action in response to the hand, ultimately colliding with it. The front and oblique-front videos show different tests. </p>
+<div class="step-media three-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+          Collision Between Dummy Hand and End Effector
+         </strong>
+</figcaption>
+<video aria-label="Collision Between Dummy Hand and End Effector" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hand-contact-front-sdr.jpg" preload="none" src="assets/media/hand-contact-front-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          VLA Only · Front View
+         </strong>
+</figcaption>
+<video aria-label="VLA Only · Front View" controls="" muted="" playsinline="" poster="assets/media/hand-vla-front-sdr.jpg" preload="none" src="assets/media/hand-vla-front-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          VLA Only · Oblique-Front View
+         </strong>
+</figcaption>
+<video aria-label="VLA Only · Oblique-Front View" controls="" muted="" playsinline="" poster="assets/media/hand-vla-oblique-sdr.jpg" preload="none" src="assets/media/hand-vla-oblique-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</article>
+<article class="experiment-step step-result" id="d-full">
+<header class="step-heading">
+<span class="step-number">02 </span>
+<div>
+<h3>
+         CBF + CRISP · Predictive Avoidance and Task Execution
+        </h3>
+</div>
+</header>
+<p class="step-description">With CRISP, the robot adjusts its motion as the dummy hand approaches and continues to complete placement after the hand is withdrawn. The clip below highlights the avoidance motion, while the full videos retain the grasping, avoidance, and placement sequence. </p>
+<div class="step-media result-excerpt">
+<figure class="film">
+<figcaption>
+<strong>
+          Avoidance Clip · Approaching Hand and End-Effector Adjustment
+         </strong>
+</figcaption>
+<video aria-label="Avoidance Clip · Approaching Hand and End-Effector Adjustment" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/hand-avoidance-oblique-sdr.jpg" preload="none" src="assets/media/hand-avoidance-oblique-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+<div class="step-media two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+          CBF + CRISP · Oblique-Front View
+         </strong>
+</figcaption>
+<video aria-label="CBF + CRISP · Oblique-Front View" controls="" muted="" playsinline="" poster="assets/media/hand-full-oblique-sdr.jpg" preload="none" src="assets/media/hand-full-oblique-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          CBF + CRISP · Front View
+         </strong>
+</figcaption>
+<video aria-label="CBF + CRISP · Front View" controls="" id="dynamic-evidence-video" muted="" playsinline="" poster="assets/media/hand-full-front-sdr.jpg" preload="none" src="assets/media/hand-full-front-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</article>
+</div>
+<div aria-labelledby="dynamic-method" class="method-panel">
+<div class="method-heading">
+<h3 id="dynamic-method">
+       CRISP Predictive Avoidance and Execution Checks
+      </h3>
+</div>
+<p class="step-description">Execution involves prediction, optimization, and checking. CRISP adjusts actions based on future proximity risks, and the CBF checks whether the command about to be sent satisfies the current constraints. </p>
+<div class="control-lanes">
+<div>
+<span class="lane-label">Predict Risk </span>
+<p>
+<b>
+         Remaining action sequence + hand motion estimate → future proximity
+        </b>
+<small>
+         Align the robot’s predicted motion with the hand’s short-term trajectory to assess proximity risks over subsequent actions, rather than considering only their current positions.
+        </small>
+</p>
+</div>
+<div>
+<span class="lane-label">Adjust in Advance </span>
+<p>
+<b>
+         CRISP optimizes the action sequence → extract the action to execute now
+        </b>
+<small>
+         Reduce predicted risk while preserving the original task actions as much as possible, allowing the robot to adjust its motion before approaching the hand.
+        </small>
+</p>
+</div>
+<div>
+<span class="lane-label">Check Before Execution </span>
+<p>
+<b>
+         Latest state + proposed action → CBF check → send command
+        </b>
+<small>
+         Using the current model gap between the end effector and the hand, the hand’s estimated motion, and the proposed action, the CBF checks whether their closing speed satisfies the barrier-function constraint. The action is retained if it passes the check; otherwise, a correction is solved for within the allowed action bounds. This checks the current action’s effect on the avoidance constraints rather than replanning the entire path around the obstacle.
+        </small>
+</p>
+</div>
+</div>
+<div class="method-bottom">
+<p>RGB-D perception continuously updates the hand’s 3D position and motion state. Perception, predictive optimization, and control are scheduled separately. The execution process checks available optimization results against the latest state, connecting advance planning with current-state safety checks. </p>
+</div>
+</div>
+<div class="prediction-inset">
+<div>
+<h3>
+       Predicted Gaps Before and After CRISP Optimization
+      </h3>
+<p>This figure comes from an actual planning record. Continuing with the original actions gives a predicted model gap of −3.69 mm at the final node, approximately 0.36 seconds into the future. After CRISP optimization, the gap at that node becomes +28.83 mm. The figure shows how optimization changes predicted future proximity from the same state. </p>
+<dl class="solve-facts">
+<div>
+<dt>
+         Prediction nodes
+        </dt>
+<dd>
+         7
+        </dd>
+</div>
+<div>
+<dt>
+         Computation time
+        </dt>
+<dd>
+         23.69 ms
+        </dd>
+</div>
+<div>
+<dt>
+         SQP iterations
+        </dt>
+<dd>
+         3
+        </dd>
+</div>
+</dl>
+</div>
+<figure>
+<img alt="Predicted model gaps before and after CRISP optimization at seven future nodes, with the final gap changing from −3.69 mm to +28.83 mm" height="430" loading="lazy" src="assets/case-study/full-gap-prediction.svg" width="880"/>
+<figcaption>
+       The horizontal axis shows future time measured from the planning instant, and the vertical axis shows the predicted model gap. Both curves come from the same planning calculation and do not represent measured motion trajectories.
+      </figcaption>
+</figure>
+</div>
+</section>
+<section class="project foundation" id="foundation">
+<div class="section-label">
+     Shared Experimental Foundation
+    </div>
+<h2>
+     Experimental Foundation · Demonstration Collection and VLA Fine-Tuning
+    </h2>
+<p class="section-intro">Both projects share the demonstration, data-processing, and model fine-tuning pipeline I developed. A base policy capable of grasping and placement from text instructions is established first, followed by residual reinforcement learning in static scenes and predictive obstacle-avoidance experiments in dynamic scenes. </p>
+<div class="foundation-methods">
+<article class="foundation-stage">
+<h3>
+       01 VR Demonstrations and Dual-Camera Recording
+      </h3>
+<p>Meta Quest 3 controllers are used to operate the robot’s end effector and gripper, manually performing approach, grasping, transport, and placement. The front camera records the tabletop and target, while the wrist camera captures the local grasping process. </p>
+<div class="upstream-credit vr-credits">
+<h4>
+        Open-Source VR Projects and Adaptations
+       </h4>
+<ul>
+<li>
+<a href="https://github.com/xiaoxiaoxh/TactAR_APP" rel="noopener" target="_blank">xiaoxiaoxh / TactAR_APP </a>provides the Meta Quest 3 headset application for acquiring and transmitting controller poses and button states. </li>
+<li>
+<a href="https://github.com/Thu-WangMX/Reactive-Diffusion-Policy-on-Flexiv-rizon4s" rel="noopener" target="_blank">Thu-WangMX / Reactive-Diffusion-Policy-on-Flexiv-rizon4s </a>provides a reference implementation for single-arm message handling, grip-button clutching, and relative-pose mapping. </li>
+<li>
+<a href="https://github.com/xiaoxiaoxh/vr-teleoperation" rel="noopener" target="_blank">xiaoxiaoxh / vr-teleoperation </a>served as a reference during the initial investigation of teleoperation approaches and coordinate mapping. </li>
+</ul>
+<p>Building on these open-source tools and reference implementations, I adapted the Rizon 4 control interface, action scales, and coordinate mappings, and implemented synchronized recording of dual-camera images and robot state, trajectory storage, and training-data conversion. </p>
+</div>
+<p>Each demonstration is stored as an HDF5 episode containing both RGB streams, robot state, gripper feedback, action commands, and timestamps. Task text is saved with the trajectory for subsequent language-conditioned training. </p>
+<div class="two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+          VR Teleoperation System
+         </strong>
+</figcaption>
+<video aria-label="VR Teleoperation System" controls="" muted="" playsinline="" poster="assets/media/vr-system-sdr.jpg" preload="none" src="assets/media/vr-system-1.5x-sdr-silent.mp4">
+         Your browser does not support video playback.
+        </video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+          Paper Cup Grasping Demonstration
+         </strong>
+</figcaption>
+<video aria-label="Paper Cup Grasping Demonstration" controls="" muted="" playsinline="" poster="assets/media/vr-cup-sdr.jpg" preload="none" src="assets/media/vr-cup-1.5x-sdr-silent.mp4">
+         Your browser does not support video playback.
+        </video>
+</figure>
+</div>
+</article>
+<article class="foundation-stage">
+<h3>
+       02 Demonstration Dataset and Data Processing
+      </h3>
+<table class="dataset-table">
+<thead>
+<tr>
+<th>
+          Demonstration data
+         </th>
+<th>
+          Total trajectories
+         </th>
+<th>
+          Total frames
+         </th>
+<th>
+          Recording frequency
+         </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+          Tabletop grasping and placement
+         </td>
+<td>
+          315
+         </td>
+<td>
+          31,780
+         </td>
+<td>
+          15 Hz
+         </td>
+</tr>
+</tbody>
+</table>
+<p>The demonstrations cover grasping and placement of paper cups, cardboard boxes, and other objects, totaling 315 trajectories and 31,780 frames, including task demonstrations and supplementary recordings. They are used to fine-tune the base model and are recorded separately from subsequent reinforcement-learning interactions. </p>
+<p>Raw episodes are converted to LeRobot v2.1 format, with current observations paired with subsequent actions according to their timing, while preserving task labels and trajectory boundaries. Temporal continuity is checked during conversion, and recordings are split around unusable intervals to avoid stitching states and actions across gaps into a continuous demonstration. </p>
+<p>Each input step includes front-camera RGB, wrist-camera RGB, end-effector pose, and gripper state. Actions consist of 3D translational velocity, 3D rotational velocity, and a gripper command. Coordinate frames, rotation representations, and gripper ranges are aligned so that the training data and deployment interface share consistent semantics. </p>
+</article>
+<article class="foundation-stage">
+<h3>
+       03 Supervised Fine-Tuning of π0.5
+      </h3>
+<p>
+<span>The base model weights are from <a href="https://github.com/Physical-Intelligence/openpi" rel="noopener" target="_blank">Physical Intelligence π0.5 Base (OpenPI, <code>pi05_base</code>) </a>. LoRA fine-tuning uses real-robot demonstrations, with task text, dual-camera images, and robot state as inputs and demonstrated action sequences as supervision. Subsequent autonomous grasping experiments use the fine-tuned model weights. </span>
+</p>
+<p>LoRA is applied to the vision-language backbone and action expert to train adaptation parameters. The model outputs action chunks of 10 steps, and its normalization and action-scaling settings are used together with the model during real-robot inference. </p>
+</article>
+<article class="foundation-stage">
+<h3>
+       04 Text Instructions and Autonomous Execution
+      </h3>
+<p>At deployment, a task instruction is provided, and the VLA continuously reads both cameras and the robot state to generate subsequent actions. The control process converts normalized actions into end-effector motion and gripper commands, updating the actions as new observations arrive. </p>
+<p>The following comparisons first examine paper cup grasping before and after fine-tuning, then evaluate performance with distractors, different targets, and different placement locations. </p>
+</article>
+</div>
+<div class="finetuning-comparison">
+<h3>
+      Before and After Fine-Tuning · Paper Cup Grasping
+     </h3>
+<p>Before fine-tuning, the robot’s motion clearly deviates from the task. The end effector moves upward, away from the paper cup on the table, and fails to approach or grasp the target. In this experimental setup, the general pretrained model cannot directly perform the paper cup grasping task. It requires adaptation of camera observations, robot state, and action interfaces, together with real-robot demonstrations to learn the corresponding operation. </p>
+<p>The real-robot demonstrations establish the relationship between images, text, robot state, and appropriate actions in this setting. After data adaptation and fine-tuning, the robot can approach the paper cup, grasp it, and place it in the bowl. </p>
+<div class="two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+         Before Fine-Tuning · Paper Cup Grasping Not Completed
+        </strong>
+</figcaption>
+<video aria-label="Before Fine-Tuning · Paper Cup Grasping Not Completed" controls="" data-loop="" loop="" muted="" playsinline="" poster="assets/media/pretrained-sdr.jpg" preload="none" src="assets/media/pretrained-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+         After Fine-Tuning · Paper Cup Grasping and Placement
+        </strong>
+</figcaption>
+<video aria-label="After Fine-Tuning · Paper Cup Grasping and Placement" controls="" muted="" playsinline="" poster="assets/media/finetuned-cup-simple-sdr.jpg" preload="none" src="assets/media/finetuned-cup-simple-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</div>
+<div class="finetuning-comparison">
+<h3>
+      Multi-Object Scenes · Selecting the Target and Placement Location from Instructions
+     </h3>
+<p>Multiple non-target objects are added to the table as distractors, while the grasping target and bowl location are also changed. The two videos instruct the robot to grasp a paper cup and a cardboard box, respectively. The model must select the target from the text, grasp it among the distractors, and then locate the bowl in the current image to place the object. </p>
+<div class="two-grid video-row">
+<figure class="film">
+<figcaption>
+<strong>
+         Target · Paper Cup
+        </strong>
+</figcaption>
+<video aria-label="Target · Paper Cup" controls="" muted="" playsinline="" poster="assets/media/finetuned-cup-sdr.jpg" preload="none" src="assets/media/finetuned-cup-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+<figure class="film">
+<figcaption>
+<strong>
+         Target · Cardboard Box
+        </strong>
+</figcaption>
+<video aria-label="Target · Cardboard Box" controls="" muted="" playsinline="" poster="assets/media/finetuned-complex-sdr.jpg" preload="none" src="assets/media/finetuned-complex-1.5x-sdr-silent.mp4">
+</video>
+</figure>
+</div>
+</div>
+<div class="hardware-setup">
+<h3>
+      Experimental Hardware and Base Model
+     </h3>
+<table class="dataset-table">
+<tbody>
+<tr>
+<th>
+         Robot arm
+        </th>
+<td>
+         Flexiv Rizon 4, 7 degrees of freedom; Flexiv RDK 1.9
+        </td>
+</tr>
+<tr>
+<th>
+         Electric gripper
+        </th>
+<td>
+         Flexiv GN01, maximum opening of 100 mm
+        </td>
+</tr>
+<tr>
+<th>
+         Front camera
+        </th>
+<td>
+         Intel RealSense D435, providing tabletop RGB-D observations
+        </td>
+</tr>
+<tr>
+<th>
+         Wrist camera
+        </th>
+<td>
+         Intel RealSense D455, providing close-up grasping images
+        </td>
+</tr>
+<tr>
+<th>
+         Demonstration device
+        </th>
+<td>
+         Meta Quest 3 and controllers
+        </td>
+</tr>
+<tr>
+<th>
+         Base manipulation model
+        </th>
+<td>
+         Physical Intelligence π0.5 Base (pi05_base), implemented in OpenPI; PaliGemma / Gemma 2B vision-language backbone + 300M action expert, fine-tuned with LoRA
+        </td>
+</tr>
+<tr>
+<th>
+         Data and action interfaces
+        </th>
+<td>
+         LeRobot v2.1; demonstrations recorded at 15 Hz; 10-step action chunks; 7-dimensional actions comprising translation, rotation, and gripper commands
+        </td>
+</tr>
+<tr>
+<th>
+         Runtime environment
+        </th>
+<td>
+         Ubuntu 22.04.5 LTS (Jammy); VLA inference, visual perception, and robot control run independently
+        </td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="materials" id="materials">
+<h2>
+     Core Tools and Sources
+    </h2>
+<div class="source-credits">
+<p>In addition to the VR tools, the base model and training use <a href="https://github.com/Physical-Intelligence/openpi" rel="noopener" target="_blank">OpenPI / π0.5 </a>, data is organized with <a href="https://github.com/huggingface/lerobot" rel="noopener" target="_blank">LeRobot </a>, and visual perception uses <a href="https://github.com/IDEA-Research/GroundingDINO" rel="noopener" target="_blank">GroundingDINO </a>and <a href="https://github.com/ChaoningZhang/MobileSAM" rel="noopener" target="_blank">MobileSAM </a>; the robot interface and gripper geometry references come from <a href="https://github.com/flexivrobotics/flexiv_rdk" rel="noopener" target="_blank">Flexiv RDK </a>and <a href="https://github.com/flexivrobotics/flexiv_description" rel="noopener" target="_blank">flexiv_description </a>. </p>
+<p>Offline kinematic analysis also uses the Rizon 4 kinematic parameters, joint limits, and robot description files from the official Flexiv <a href="https://github.com/flexivrobotics/flexiv_description" rel="noopener" target="_blank">flexiv_description </a>repository, including <code>
+       default_kinematics.yaml
+      </code>and <code>
+       joint_limits.yaml
+      </code>. Forward kinematics and Jacobian matrices are computed from these parameters to analyze robot configurations and motion issues in the experiments; this is not an additional online obstacle-avoidance module. </p>
+</div>
+</section>
+</main>
+<footer class="wrap">
+<span>Rui Wu · 2026 </span>
+<a href="#">Back to top ↑ </a>
+</footer>
+</body>
+</html>

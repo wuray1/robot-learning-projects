@@ -41,3 +41,27 @@
   scan();
   new MutationObserver(scan).observe(document.body, {childList: true, subtree: true});
 })();
+
+// Keep the current section when switching between the translated pages.
+(() => {
+  const links = document.querySelectorAll('[data-language-link]');
+  function syncSection() {
+    links.forEach(link => {
+      const url = new URL(link.getAttribute('href'), document.baseURI);
+      url.hash = location.hash;
+      link.href = url.href;
+    });
+  }
+  syncSection();
+  window.addEventListener('hashchange', syncSection);
+  links.forEach(link => link.addEventListener('click', () => {
+    if (location.hash) return;
+    const sections = [...document.querySelectorAll('main > section[id]')];
+    const current = sections.filter(section => section.getBoundingClientRect().top <= 120).at(-1);
+    if (current) {
+      const url = new URL(link.href);
+      url.hash = current.id;
+      link.href = url.href;
+    }
+  }));
+})();

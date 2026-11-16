@@ -135,3 +135,15 @@ body{font-size:17px;line-height:1.8;color:#202624}.wrap{width:min(1160px,calc(10
 .perception-grid p{font-size:16px;line-height:1.75;color:#4f5953}
 .perception-grid img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;background:#f6f7f5}
 @media(max-width:760px){.perception-grid{grid-template-columns:1fr;gap:28px}.perception-grid>figure{display:block;grid-row:auto}.perception-grid img{margin-top:14px}.perception-process>header h3{font-size:23px}}
+
+/* Keep language selection separate from the section navigation. */
+.page-header .language-switch{display:flex;justify-content:flex-end;gap:0;border:0;padding:0;margin:0 0 16px;line-height:1.5}
+.language-switch a{padding:7px 14px;border:1px solid var(--rule);font-size:14px;text-decoration:none;color:var(--muted);background:white}
+.language-switch a:first-child{border-radius:6px 0 0 6px}
+.language-switch a:last-child{border-radius:0 6px 6px 0;border-left:0}
+.language-switch a[aria-current="page"]{background:var(--accent);color:white;border-color:var(--accent)}
+.language-switch a:hover{background:var(--soft);color:var(--ink)}
+html[lang="en"] .control-lanes .lane-label{overflow-wrap:normal}
+html[lang="en"] h1{font-size:clamp(30px,4vw,48px)}
+html[lang="en"] .autonomy-flow li{overflow-wrap:normal}
+@media(max-width:560px){.page-header .language-switch{margin-bottom:12px}}
